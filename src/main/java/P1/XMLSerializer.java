@@ -11,16 +11,49 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class Serializer {
+public class XMLSerializer {
+    private static Document document;
+    private static Map<Object, Integer> objectMap;
+
+    private static void initialize() {
+        objectMap = new HashMap<>();
+
+        document = new Document();
+        Element objectEle = new Element("serialized");
+        document.setRootElement(objectEle);
+    }
+    private static void reset(){
+        objectMap = null;
+        document = null;
+    }
+
     public static Document serialize(Object obj) throws Exception {
-        Map<Object, Integer> objectMap = new HashMap<>();
-        Element objectEle = beginSerialize(obj, objectMap);
-        return new Document(objectEle);
+        initialize();
+
+        beginSerialize(obj, objectMap);
+        Document finalizedDoc = document;
+
+        reset();
+        return finalizedDoc;
+    }
+
+    private static Element getObjectElement(Object obj) {
+        Element element = new Element("object");
+        Class cls = obj.getClass();
+        element.setAttribute("class", cls.getName());
+        return element;
+    }
+
+    private static Element getArrayElement(Object obj) {
+        Element element = new Element("array");
+        Class cls = obj.getClass();
+        element.setAttribute("class", cls.getName());
+        return element;
     }
 
     private static Element beginSerialize(Object obj, Map<Object, Integer> objectMap) throws Exception {
         try {
-            Element element = new Element("object");
+            Element element = getObjectElement(obj);
             element.setAttribute("id", String.valueOf(objectMap.size()));
             objectMap.put(obj, objectMap.size());
 
@@ -29,6 +62,7 @@ public class Serializer {
                 element.addContent(getElement(obj, field, objectMap));
             }
 
+            document.getRootElement().addContent(element);
             return element;
         } catch (Exception e) {
             e.printStackTrace();
@@ -38,7 +72,7 @@ public class Serializer {
 
     private static Element getArrayElement(Field field, Object array, Map<Object, Integer> objectMap) throws Exception {
         int length = Array.getLength(array);
-        Element arrayElement = new Element("array");
+        Element arrayElement = getArrayElement(array);
         for (int i = 0; i < length; i++) {
             Object val = Array.get(array, i);
             Element fieldElement = loadElement(field, val, objectMap);
@@ -49,10 +83,12 @@ public class Serializer {
 
     private static Element loadElement(Field field, Object value, Map<Object, Integer> objectMap) throws Exception {
         Element element = new Element("field");
-        String className = field.getDeclaringClass().getName();
+        String enclosingClassName = field.getDeclaringClass().getName();
+        String className = value.getClass().getName();
         String fieldName = field.getName();
 
-        element.setAttribute("class", className);
+        element.setAttribute("enclosingClass", enclosingClassName);
+        element.setAttribute("class",className);
         element.setAttribute("name", fieldName);
 
         Class cls = field.getType();
@@ -78,8 +114,8 @@ public class Serializer {
             if (!Modifier.isPublic(field.getModifiers())) {
                 field.setAccessible(true);
             }
-            Class cls = field.getClass();
             Object fieldObj = field.get(obj);
+            Class cls = fieldObj.getClass();
             if (cls.isArray()) {
                 return getArrayElement(field, fieldObj, objectMap);
             } else {
@@ -107,14 +143,6 @@ public class Serializer {
             return desiredFields.toArray(new Field[desiredFields.size()]);
         } catch (SecurityException e) {
             throw e;
-        }
-    }
-
-    public static void main(String[] args) {
-        try {
-            Document document = serialize(new Ex1());
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 }

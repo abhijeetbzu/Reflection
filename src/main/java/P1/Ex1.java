@@ -20,8 +20,6 @@ class GrandChild extends GrandParent {
 }
 
 public class Ex1 {
-    private int i1 = 10;
-    private String name = "Abhijeet";
     public static void sayHello(Object obj, String methodName, Class[] params) {
         try {
             Class cls = obj.getClass();
