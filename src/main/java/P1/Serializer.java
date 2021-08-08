@@ -2,6 +2,8 @@ package P1;
 
 import org.jdom2.Document;
 import org.jdom2.Element;
+import org.jdom2.output.Format;
+import org.jdom2.output.XMLOutputter;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
@@ -113,6 +115,8 @@ public class Serializer {
     public static void main(String[] args) {
         try {
             Document document = serialize(new Ex1());
+            XMLOutputter xmlOutput = new XMLOutputter(Format.getPrettyFormat());
+            xmlOutput.output(document,System.out);
         } catch (Exception e) {
             e.printStackTrace();
         }
