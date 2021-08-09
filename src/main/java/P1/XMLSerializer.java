@@ -22,7 +22,8 @@ public class XMLSerializer {
         Element objectEle = new Element("serialized");
         document.setRootElement(objectEle);
     }
-    private static void reset(){
+
+    private static void reset() {
         objectMap = null;
         document = null;
     }
@@ -51,19 +52,36 @@ public class XMLSerializer {
         return element;
     }
 
+    private static Integer getIdForElement(Object obj, Map<Object, Integer> objectMap) {
+        if (objectMap.containsKey(obj)) {
+            return objectMap.get(obj);
+        }
+        return -1;
+    }
+
+    private static Integer getIdForElement(Object obj, Map<Object, Integer> objectMap, boolean putIfAbsent) {
+        int id = getIdForElement(obj, objectMap);
+        if (putIfAbsent && id == -1) {
+            objectMap.put(obj, objectMap.size());
+            return objectMap.size() - 1;
+        }
+        return id;
+    }
+
     private static Element beginSerialize(Object obj, Map<Object, Integer> objectMap) throws Exception {
         try {
-            Element element = getObjectElement(obj);
-            element.setAttribute("id", String.valueOf(objectMap.size()));
-            objectMap.put(obj, objectMap.size());
+            Element parent = getObjectElement(obj);
+            String elementId = String.valueOf(getIdForElement(obj, objectMap, true));
+            parent.setAttribute("id", elementId);
 
             Field[] fields = getDeclaredFields(obj.getClass());
             for (Field field : fields) {
-                element.addContent(getElement(obj, field, objectMap));
+                Element child = serializeElement(obj, field, objectMap);
+                parent.addContent(child);
             }
 
-            document.getRootElement().addContent(element);
-            return element;
+            document.getRootElement().addContent(parent);
+            return parent;
         } catch (Exception e) {
             e.printStackTrace();
             throw e;
@@ -88,7 +106,7 @@ public class XMLSerializer {
         String fieldName = field.getName();
 
         element.setAttribute("enclosingClass", enclosingClassName);
-        element.setAttribute("class",className);
+        element.setAttribute("class", className);
         element.setAttribute("name", fieldName);
 
         Class cls = field.getType();
@@ -98,18 +116,19 @@ public class XMLSerializer {
             element.addContent(val);
         } else {
             Element ref = new Element("reference");
-            if (objectMap.containsKey(value))
-                ref.setText(objectMap.get(value).toString());
+            Integer refId = getIdForElement(value, objectMap);
+            if (refId != -1) //element not serialized yet
+                ref.setText(refId.toString());
             else {
-                ref.setText(String.valueOf(objectMap.size()));
                 beginSerialize(value, objectMap);
+                ref.setText(String.valueOf(getIdForElement(value, objectMap))); //get new id of element after serialization
             }
             element.addContent(ref);
         }
         return element;
     }
 
-    private static Element getElement(Object obj, Field field, Map<Object, Integer> objectMap) throws Exception {
+    private static Element serializeElement(Object obj, Field field, Map<Object, Integer> objectMap) throws Exception {
         try {
             if (!Modifier.isPublic(field.getModifiers())) {
                 field.setAccessible(true);
