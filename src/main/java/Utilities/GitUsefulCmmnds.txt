@@ -1,0 +1,4 @@
+# https://stackoverflow.com/questions/25436312/gitignore-not-working
+git rm -r --cached .
+git add .
+git commit -m ".gitignore is now working"
